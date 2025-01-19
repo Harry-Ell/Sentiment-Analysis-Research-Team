@@ -2,10 +2,10 @@
 Repository for sentiment analysis research project undertaken as part of the Quant team in LUIFS Ghosal Fund. 
 
 
-## Repository Overview
+# Repository Overview
 [change once you have altered this]
 
-### Features
+## Features
 - User API for sentiment analysis based on input Tickers
 - Analysis of predictive power of sentiment changes on stock price
 
