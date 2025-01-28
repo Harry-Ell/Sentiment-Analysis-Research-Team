@@ -1,3 +1,7 @@
+# tickers of companies we have pulled data for, just to keep repo tidy
+*AAPL
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
