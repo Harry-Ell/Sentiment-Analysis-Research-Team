@@ -4,6 +4,12 @@ Short script which will pull the annual or quaterly reports from SEC api.
 Very hacky fix to move the files from their first location to somewehre neater. 
 The fucking downloader would not listen to the download path and just dropped 
 it where ever it pleased.
+
+Note, when you run this file, it expects your terminal to be in the location 
+'Sentiment-Analysis-Research-Team\\api_research'. if its not and your terminal 
+is one layer up in the file tree, it wont save in desired location. 
+
+at risk of stating the obvious, just cd api_research
 '''
 
 import shutil
