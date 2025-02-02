@@ -1,4 +1,3 @@
-# ...existing code...
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -23,11 +22,12 @@ def extract_filings_text(cik, TICKER, MAX_FILES, filing_types=["10-K", "10-Q"], 
     os.makedirs(ticker_dir, exist_ok=True)
     
     successes = 0
+    first_file_path = None
     # Process filings
     for i, form_type in enumerate(filing_types_list):
         if successes >= MAX_FILES:
             print('Fetch complete')
-            return None
+            return first_file_path
         elif form_type in filing_types:
                 successes += 1 
                 # Construct the filing URL
@@ -51,8 +51,13 @@ def extract_filings_text(cik, TICKER, MAX_FILES, filing_types=["10-K", "10-Q"], 
                     f.write(clean_text)
                 
                 print(f"Saved: {output_file}")
+                
+                if first_file_path is None:
+                    first_file_path = output_file
 
-# a downside is you have to find the cik number for the company. lifes a bitch
+    return first_file_path
+
 if __name__ == "__main__":
     cik = "0000320193"  # Apple Inc.'s CIK
-    extract_filings_text(cik, 'AAPL', 5)
+    first_file_path = extract_filings_text(cik, 'AAPL', 5)
+    print(f"First file path: {first_file_path}")
