@@ -15,12 +15,12 @@ if first_file_path:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
-                "Authorization": "Bearer <INSERT API KEY>",
+                "Authorization": "Bearer <INSERT KEY>",
             },
             data=json.dumps({
                 "model": "deepseek/deepseek-r1:free", 
                 "messages": [
-                    {"role": "user", "content": f"Extract the information in the 'risks' section:\n\n{file_content}"}
+                    {"role": "user", "content": f"Extract the exact text from the 'Risks' section of this file. Do not summarize, rephrase, or add any extra words—provide the content exactly as it appears:\n\n{file_content}"}
                 ],
                 "top_p": 0.99,
                 "temperature": 0.63,
@@ -36,8 +36,9 @@ if first_file_path:
     retry_delay = 15  
 
     for attempt in range(max_retries):
+        print(f"Attempt {attempt + 1}/{max_retries}...")
         response = make_api_call(file_content)
-        if response.status_code == 429 or (response.status_code == 200 and 'error' in response.json() and response.json()['error']['code'] == 429):
+        if response.status_code == 429 or (response.status_code == 200 and 'error' in response.json() and response.json()['error']['code'] == 429) or (response.status_code == 200 and response.json().get('usage', {}).get('completion_tokens', 1) <= 0) or response.status_code != 200:
             print(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
             time.sleep(retry_delay)
         else:
@@ -47,9 +48,10 @@ if first_file_path:
         response_json = response.json()
         if response_json.get('choices') and response_json['choices'][0]['message']['content']:
             print("API response:")
-            print(response_json)
+            print(response_json['choices'][0]['message']['content'])
         else:
             print("API response is empty or invalid.")
+            print(response_json)
     else:
         print("Failed to get a valid response from the API.")
 else:
