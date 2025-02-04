@@ -1,60 +1,85 @@
-import sqlite3
-from datetime import datetime
-import pandas as pd
+"""
+Sentiment Anaylsis Data Pipeline
+
+Handles the collection and processing of financial data for sentiment analysis.
+Main components:
+- API handlers for SEC EDGAR, Alpha Vantage and Yahoo Finance
+- Sentiment anaylsis prcoessing
+- Data Orchestration coordinates data collection and processing
+"""
+
 from typing import Dict, Any
 from abc import ABC, abstractmethod
 import requests
 import time
 from functools import lru_cache
+import yfinance as yf
 
-class DatabaseMananger:
-    """
-    Handles all database interactions with SQLite. Creates tables for fillings,
-    news, and market data. 
-    Manages connections and query execution
-    Implements indexes for optimisation
-    """
-    def __init__(self, db_path="financial_data.db"):
-        self.db_path = db_path
-        self.setup_database()
+class BaseAPIHandler(ABC):
+    """Abstract base class for API interactions. All API handlers inherit from this. Includes rate limiting""" 
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key
+        self.retry_delay = 1
 
-    def setup_database(self):
+    @abstractmethod
+    def fetch_data(self, ticker:str) -> Dict[str, Any]:
+        pass
+
+class SECEdgarHandler(BaseAPIHandler):
+    """SEC EDGAR API integration. Integration with report_downloader2.py for document extraction."""
+    def __init__(self):
+        super().__init__()
+        self.headers = {"User-Agent": "example@email.com"}
+
+    def fetch_data(self, ticker: str) -> Dict[str, Any]:
+        from report_downloader2 import extract_filings_text
+        cik = self.get_cik(ticker)
+        return {"sec_filings": extract_filings_text(cik, ticker, 5)}
+    
+class AlphaVantageHandler(BaseAPIHandler):
+    """Handles Alpha Vantage API requests"""
+    def __init__(self, api_key: str):
+        super().__init__(api_key)
+        self.base_url = "https://www.alphavantage.co/query"
+
+    def fetch_data(self, ticker: str) -> Dict[str, Any]:
+        params = {
+            "function": "NEWS_SENTIMENT",
+            "ticker": ticker,
+            "apikey": self.api_key
+        }
+        response = requests.get(self.base_url, params=params)
+        return {"news_data": response.json()}
+    
+class YahooFinanceHandler(BaseAPIHandler):
+    """Handles Yahoo Finance data retrieval"""
+    def fetch_data(self, ticker: str) -> Dict[str, Any]:
+        stock = yf.Ticker(ticker)
+        return {
+            "market_data": {
+                "info": stock.info,
+                "earnings": stock.earnings,
+            }
+        }
+
+class DataOrchestrator:
+    """Coordinates data collection from multiple sources"""
+    def __init__(self, alpha_vantage_key: str):
+        self.handlers = {
+            "sec_edgar": SECEdgarHandler(),
+            "alpha_vantage": AlphaVantageHandler(alpha_vantage_key),
+            "yahoo_finance": YahooFinanceHandler()
+        }
+
+    def collect_data(self, ticker: str) -> Dict[str, Any]:
         """
-        Initialize database structure:
-        - filings: stores SEC document data
-        - news: stores news articles and sentiment from articles
-        - market_data: stores stock price data and volume info
+        Collects all data needed for sentiment analysis
+        Returns structured data for LLM processing
         """
-        with sqlite3.connect(self.db_path) as conn:
-            # Filings table - stores SEC documents
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS filings (
-                    id INTEGER PRIMARY KEY,
-                    ticker TEXT,
-                    filing_type TEXT,
-                    filing_date DATE,
-                    context TEXT,
-                    sentiment_score FLOAT,
-                    UNIQUE(ticker, filing_type, filing_date)
-                )
-            """)
-            # News table - stores news articles
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS news (
-                    id INTEGER PRIMARY KEY,
-                    ticker TEXT,
-                    publish_date DATE,
-                    headline TEXT,
-                    sentiment_score FLOAT
-                )
-            """)
-            # Market data table - stores stock price data
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS market_data (
-                    id INTEGER PRIMARY KEY,
-                    ticker TEXT,
-                    date DATE,
-                    close_price FLOAT,
-                    volume INTEGER
-                )
-            """)
+        collected_data = {}
+        for source, handler in self.handlers.items():
+            collected_data.update(handler.fetch_data(ticker))
+        return collected_data
+
+
+        
