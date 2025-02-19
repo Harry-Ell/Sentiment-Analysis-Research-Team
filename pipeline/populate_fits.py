@@ -1,37 +1,60 @@
-'''
-function for Jack to work on 
-
-plan for function:
-load in the csv files in datasets one at a time.
-for any given mapping function, def an empty df which will 
-store target values (these are the names of the csvs, without 
-the preceeding 'v'), and the value each mapping function takes 
-these to.
-
-write this csv to the folder `fitted_function_values`, as a csv with the file 
-name the same as the function name. 
-
-'''
-
 import pandas as pd
+import os
 from mappings import Mappings, MappingRegistry
 
-# we run for an example file for now 
-file_name = 'v8.4806.csv'
-df = pd.read_csv(f'datasets/{file_name}')
+def processAllDatasets():
+    # Get the directory containing this script
+    scriptDir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Create fitted_function_values directory if it doesn't exist
+    outputDir = os.path.join(scriptDir, '..', 'fitted_function_values')
+    if not os.path.exists(outputDir):
+        os.makedirs(outputDir)
 
-# to make my life easier, i have all of the calls and puts in the same csv. Hence, to map
-# to a scalar value you will have to separate them like this 
-df_calls = df.loc[df['call_or_put'] == 'C']
-df_puts = df.loc[df['call_or_put'] == 'P']
+    # Get list of all CSV files in datasets directory
+    datasetsDir = os.path.join(scriptDir, '..', 'datasets')
+    datasetFiles = [f for f in os.listdir(datasetsDir) if f.endswith('.csv')]
+        
+    # Initialize registry and get all mapping functions
+    # This needs updating when new functions are added
+    registry = MappingRegistry()
+    registry.register_mapping('first_ever_attempt', Mappings.first_ever_attempt)
+    registry.register_mapping('different_scaling', Mappings.different_scaling)
 
-# init our colleciton of maps, label them as you want
-registry = MappingRegistry()
-registry.register_mapping('first_attempt', Mappings.different_scaling)
+    # For each mapping function
+    for mappingName, mappingFunc in registry.mappings.items():
+        # Create empty df
+        resultsDF = pd.DataFrame(columns=['target', 'callsValue', 'putsValue'])
+        
+        # Process each CSV file
+        for fileName in datasetFiles:
+            # Extract target value 
+            target = float(fileName[1:-4])
+            
+            # Read and process the CSV
+            csvPath = os.path.join(datasetsDir, fileName)
+            df = pd.read_csv(csvPath)
+            
+            # Split into calls and puts
+            dfCalls = df.loc[df['call_or_put'] == 'C']
+            dfPuts = df.loc[df['call_or_put'] == 'P']
+            
+            # Apply mapping function 
+            callsValue = registry.apply_mapping(mappingName, dfCalls)
+            putsValue = registry.apply_mapping(mappingName, dfPuts)
+            
+            # Add results to df
+            resultsDF.loc[len(resultsDF)] = {
+                'target': target,
+                'callsValue': callsValue,
+                'putsValue': putsValue
+            }
+        
+        # Save results to CSV
+        # Converts df to CSV
+        outputPath = os.path.join(outputDir, f'{mappingName}.csv')
+        resultsDF.to_csv(outputPath, index=False)
+        print(f"Saved results for {mappingName} to {outputPath}")
 
-# Apply a mapping
-scalar_value_calls = registry.apply_mapping('first_attempt', df_calls)
-scalar_value_puts = registry.apply_mapping('first_attempt', df_puts)
-
-# to show shes working 
-print(scalar_value_calls - scalar_value_puts)
+if __name__ == "__main__":
+    processAllDatasets()
