@@ -26,7 +26,13 @@ class Mappings:
             
         Returns:
             float: Scalar value representing market sentiment
-        """
+
+        Explanation of the formula:
+        - lastPrice: Higher option prices indicate higher demand, implying stronger sentiment
+        - ratio: A higher strike to spot ratio for calls indicates more bullish sentiment
+        - (365 - dte): Options closer to expiration / smaller dte are given more weight as they reflect
+        more immediate sentiment
+        """    
         score = df['lastPrice'] * df['ratio'] / (365 - df['dte'])
         return np.mean(score)
 
@@ -44,9 +50,10 @@ class Mappings:
         """
         mean_call_score = calls_df['lastPrice'] * calls_df['ratio'] / (365 - calls_df['dte']).mean()
         mean_put_score = puts_df['lastPrice'] * puts_df['ratio'] / (365 - puts_df['dte']).mean()
+        difference = mean_call_score - mean_put_score
         
         # Return difference as sentiment indicator
-        return mean_call_score - mean_put_score
+        return difference
     
 
 
