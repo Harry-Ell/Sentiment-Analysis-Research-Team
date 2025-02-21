@@ -16,20 +16,37 @@ class Mappings:
     """
 
     @staticmethod
-    def first_ever_attempt(df: pd.DataFrame) -> float:
+    def options_score_weighted_dte(df: pd.DataFrame) -> float:
         """
-        first map function we had. we dont expect this to be good
+        Calculates score based on days until expiration, ratio of strike price to current stock price,
+        and current trading price. Options closer to expiration are given more weight.
+        
+        Args:
+            df (pd.DataFrame): DataFrame containing options data with columns 'lastPrice', 'ratio', 'dte'
+            
+        Returns:
+            float: Scalar value representing market sentiment
         """
-        score = df['lastPrice'] * df['ratio'] / np.absolute(365 - df['dte'])
+        score = df['lastPrice'] * df['ratio'] / (365 - df['dte'])
         return np.mean(score)
 
     @staticmethod
-    def different_scaling(df: pd.DataFrame) -> float:
+    def call_put_sentiment_comparison(calls_df: pd.DataFrame, puts_df: pd.DataFrame) -> float:
         """
-        random other one
+        Compares call and put options sentiment to determine overall market direction.
+        
+        Args:
+            calls_df (pd.DataFrame): DataFrame containing call options data
+            puts_df (pd.DataFrame): DataFrame containing put options data
+            
+        Returns:
+            float: Scalar value representing market sentiment (positive for bullish, negative for bearish)
         """
-        score = df['lastPrice'] * df['ratio'] * np.sqrt(df['dte'] / 365)
-        return np.mean(score)
+        mean_call_score = calls_df['lastPrice'] * calls_df['ratio'] / (365 - calls_df['dte']).mean()
+        mean_put_score = puts_df['lastPrice'] * puts_df['ratio'] / (365 - puts_df['dte']).mean()
+        
+        # Return difference as sentiment indicator
+        return mean_call_score - mean_put_score
     
 
 
